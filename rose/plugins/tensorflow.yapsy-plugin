@@ -1,0 +1,8 @@
+[Core]
+Name = tensorflow
+Module = tensorflow_wrapper
+
+[Documentation]
+Author = Duan Uys
+Version = 1.0.0
+Description = Deep Learning Module Converted Plugin

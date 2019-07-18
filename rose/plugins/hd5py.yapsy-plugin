@@ -1,0 +1,8 @@
+[Core]
+Name = hd5py
+Module = hd5py_wrapper
+
+[Documentation]
+Author = Duan Uys
+Version = 1.0.0
+Description = Plugin that handles storage of data

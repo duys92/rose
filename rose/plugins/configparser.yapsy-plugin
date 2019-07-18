@@ -1,0 +1,8 @@
+[Core]
+Name = ini_parser
+Module = configparser
+
+[Documentation]
+Author = Duan Uys
+Version = 1.0.0
+Description = Custom class inheriting pythons native configparser module

@@ -20,6 +20,7 @@ class VoiceRecognition(object):
     prev_depth_control = None
 
     def __init__(self, model_name, alphabet, lm, trie=None):
+        print("Loading Model...this may take a while.")
 
         self.Model = ds_Model(model_name, self.n_features, self.n_context, alphabet, self.beam_width)
         self.Model.enableDecoderWithLM(alphabet, lm, trie, self.lm_alpha, self.lm_beta)

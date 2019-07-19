@@ -1,6 +1,5 @@
 #include "Arduino.h"
 #include "math.h"
-#include "ccl_data.h"
 /**
 CMD packet structure to command switches and other 'wireline' tools
 
@@ -14,7 +13,6 @@ To Control Switches:
 
 
 **/
-
 #define FLOAT_TO_BYTES(N) (*(float*)(N))
 #define BYTES_TO_FLOAT(N) (*(float*)(N))
 #define SEC_IN_MIN (60)
@@ -71,6 +69,12 @@ public:
     float RatePerClick = 20;
     float PrevRate = 0;
     bool automatic = false;
+
+    bool perf_mode = false;
+    int perfs[2];
+    int perf_ptr = 0;
+    bool shoot_now = false;
+
     float DesiredDepth = -1;
 
     float run() {
@@ -95,7 +99,7 @@ private:
         return (float) map(rate_input, 0, 4095, 0, 350);
     }
 
-    void tune_rate(float steps = 20) {
+    void tune_rate(float steps = 10) {
         float step_per_click = steps;
 
         if (this->Rate != this->DesiredRate) {
@@ -146,9 +150,9 @@ private:
             this->tune_rate();
         } else {
             if (abs(this->PrevRate - rate_input) > threshold) {
-                Serial1.print(this->PrevRate);
-                Serial1.print(" ");
-                Serial1.println(rate_input);
+//                Serial1.print(this->PrevRate);
+//                Serial1.print(" ");
+//                Serial1.println(rate_input);
                 this->automatic = false;
             }
         }
@@ -160,6 +164,17 @@ private:
         float rate_per_update = ((float) this->Rate / (float) SEC_IN_MIN) / (1000.0 / (float) DEPTH_UPDATE_TIME);
 
         this->Depth += rate_per_update;
+
+        if (this->perf_mode && (this->perfs[this->perf_ptr] == (int)this->Depth)){
+            this->shoot_now = true;
+            this->perf_ptr++;
+
+            if(this->perf_ptr > (LEN(this->perfs)-1)){
+                this->perf_ptr = 0;
+                this->perf_mode = false;
+            }
+        }
+
         if (this->Depth < 0)
             this->Depth = 0;
     }
@@ -208,56 +223,11 @@ public:
     float a = 0.1;
     bool anom_detected = false;
     float run(const Depth &depth) {
-//        if (this->prev_depth < 0) {
-//            this->prev_depth = depth.Depth;
-//            this->threshold += randn(0,0.5);
-//        }
-//
-//        if (abs(depth.Depth - this->prev_depth) >= threshold ) {
-//            this->blip = 1;
-//            this->prev_depth = depth.Depth;
-//
-//            if (random(0,10000) == 0){
-//                // a 0.01% of happening
-//                this->threshold = 40 + randn(10, 4);
-//            }
-//
-//            this->threshold = 40 + randn(0, 0.5);
-//        }
-//        else{
-//            this->blip = 0;
-//        }
-//        //Serial.println(this->blip);
-//        return this->blip;
-//    
-//        int cur_depth = (unsigned int)(depth.Depth * 10.0);
-//        float ccl_by_depth = pgm_read_float_near(ccl_data + cur_depth);
-//        float depth_rate = abs(depth.Depth -this->prev_depth);
-//        float depth_rate_ftmin = depth_rate * 60 * (1000.0/ DEPTH_UPDATE_TIME);
-//
-//        if(this->anom_detected == true){
-//          this->a = 0.06;
-//          if (this->anom_counter++ == 10){
-//            this->a = 0.01;
-//          }
-//          this->anom_detected = false;
-//        }
           
         if (this->counter > 50){
           this->counter = 0;
         }
 
-//        if (this->counter >= 46){
-//          // max is 15 min is 1
-//          gain = 0.10 * (depth_rate_ftmin) + 1;
-//        }
-//        else{
-//          gain = 1;
-//        }
-//
-//        if (random(0,101) < 50 && gain == 1 && this->anom_detected == false){
-//          this->anom_detected = true;
-//        }
         
         float rads = 2.0*M_PI*(float)this->counter++/100.0;
         float ccl_by_depth = this->a*sin(20.0*rads); //* (random(-10000,10000)/10000.0);
@@ -281,6 +251,8 @@ class Packager {
     byte ccl_data[sizeof(float)];
     byte meta_data[sizeof(float)];
     byte automatic_flag;
+    byte shoot_now_flag;
+    byte perf_mode_flag;
 
 public:
     void sendData(Depth &depth, TempTool &temp, CCLTool &ccl) {
@@ -289,6 +261,8 @@ public:
         FLOAT_TO_BYTES(this->meta_data) = (float) DEPTH_UPDATE_TIME;
         FLOAT_TO_BYTES(this->desireddepth_data) = depth.DesiredDepth;
         this->automatic_flag = (byte) depth.automatic;
+        this->shoot_now_flag = (byte) depth.shoot_now;
+        this->perf_mode_flag = (byte) depth.perf_mode;
 
         //this->ccl_blip = (byte)ccl.run(depth);
         FLOAT_TO_BYTES(this->ccl_data) = (float)ccl.run(depth);
@@ -313,7 +287,20 @@ private:
         this->_send_desired_depth();
         this->_send_ccl_data();
         this->_send_automatic_flag();
+        this->_send_shoot_now_flag();
+        this->_send_perf_mode_flag();
 
+    }
+
+    void _send_perf_mode_flag(){
+        Serial.write(this->perf_mode_flag);
+    }
+
+    void _send_shoot_now_flag(){
+        Serial.write(this->shoot_now_flag);
+        if(this->shoot_now_flag){
+            this->shoot_now_flag = false;   //TODO may not be seen due to GUI samplling data as it comes up.
+        }
     }
 
     void _send_prev_depth(){
@@ -365,8 +352,11 @@ private:
 class DepthController {
 
     Depth *depth;
-    byte data_in[2];
+    byte data_in[5];
+    byte cmd_code;
+    int packet_1, packet_2;
     int end_depth;
+    int perf1, perf2;
 
 public:
     explicit DepthController(Depth *obj) {
@@ -383,9 +373,23 @@ public:
                 i = Serial1.read();
             }
 
-            this->end_depth = (int) (BIT8_TO_16BIT(this->data_in[0], this->data_in[1]));
-            depth->automatic = true;
-            depth->DesiredDepth = (float) this->end_depth;
+            cmd_code = (byte)(data_in[0]);
+            packet_1 = (int) (BIT8_TO_16BIT(this->data_in[1], this->data_in[2]));
+            packet_2 = (int) (BIT8_TO_16BIT(this->data_in[3], this->data_in[4]));
+
+            if (cmd_code == (byte)(0x01)){
+              // Depth Control
+              this->end_depth = packet_1;
+              depth->automatic = true;
+              depth->DesiredDepth = (float)(this->end_depth);
+            }
+            else{
+              this->perf1 = packet_1;
+              this->perf2 = packet_2;
+              depth->automatic = true;
+              depth->perf_mode = true;
+              depth->DesiredDepth = (float)(this->perf2)+100.0; //add hundred feet so automatic can go past that.
+            }
         }
     }
 };

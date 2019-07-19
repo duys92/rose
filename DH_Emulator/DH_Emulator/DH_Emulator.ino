@@ -166,6 +166,14 @@ private:
         this->Depth += rate_per_update;
 
         if (this->perf_mode && (this->perfs[this->perf_ptr] == (int)this->Depth)){
+//            Serial1.print("perf_ptr: ");
+//            Serial1.print(this->perf_ptr);
+//            Serial1.print(" cur target perf: ");
+//            Serial1.print(this->perfs[this->perf_ptr]);
+//            Serial1.print( "perfs: ");
+//            Serial1.print(this->perfs[0]);
+//            Serial1.print(" and ");
+//            Serial1.println(this->perfs[1]);
             this->shoot_now = true;
             this->perf_ptr++;
 
@@ -262,6 +270,10 @@ public:
         FLOAT_TO_BYTES(this->desireddepth_data) = depth.DesiredDepth;
         this->automatic_flag = (byte) depth.automatic;
         this->shoot_now_flag = (byte) depth.shoot_now;
+
+        if ((byte)depth.shoot_now)
+            depth.shoot_now = false;
+
         this->perf_mode_flag = (byte) depth.perf_mode;
 
         //this->ccl_blip = (byte)ccl.run(depth);
@@ -298,9 +310,6 @@ private:
 
     void _send_shoot_now_flag(){
         Serial.write(this->shoot_now_flag);
-        if(this->shoot_now_flag){
-            this->shoot_now_flag = false;   //TODO may not be seen due to GUI samplling data as it comes up.
-        }
     }
 
     void _send_prev_depth(){
@@ -388,6 +397,8 @@ public:
               this->perf2 = packet_2;
               depth->automatic = true;
               depth->perf_mode = true;
+              depth->perfs[0] = this->perf1;
+              depth->perfs[1] = this->perf2;
               depth->DesiredDepth = (float)(this->perf2)+100.0; //add hundred feet so automatic can go past that.
             }
         }

@@ -105,8 +105,8 @@ class VoiceRecognitionThread(QtCore.QThread):
         self.wait()
 
     def run(self):
-        #self.vr.listen_and_do()
-        pass
+        self.vr.listen_and_do()
+        # pass
 
 
 class Map(dict):
@@ -461,7 +461,7 @@ package = Map({
     'rate_label': rate_label,
     'time_left_label': time_left_label,
     'auto_pic': auto_pic,
-    'rose_output': rose_output,
+    #'rose_output': rose_output,
     'prev_depth': 0,
 })
 

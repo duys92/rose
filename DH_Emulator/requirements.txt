@@ -10,4 +10,4 @@ Keras==2.2.4
 PyQt4==4.11.4
 pyserial==3.4
 scikit_learn==0.21.2
-tensorflow==1.14.0
+tensorflow==1.15.2

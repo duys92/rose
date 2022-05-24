@@ -4,4 +4,4 @@ numpy==1.16.1
 h5py==2.9.0
 rose==1.0.0
 scikit_learn==0.21.2
-tensorflow==1.14.0
+tensorflow==2.6.4

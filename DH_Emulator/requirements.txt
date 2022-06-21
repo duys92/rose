@@ -1,6 +1,6 @@
 SpeechRecognition==3.8.1
 tensorflow_gpu==1.13.1
-numpy==1.16.1
+numpy==1.22.0
 lasio==0.23
 matplotlib==3.1.0
 deepdish==0.3.6
